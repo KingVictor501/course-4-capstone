@@ -1,20 +1,23 @@
-# MyChair
+# Weekly Digest
 
-Booking and client management for barbershops (one shop for now).
+A worker that does one recurring job for one person: every week it turns a barbershop's
+appointments into one review for the owner, and proposes which clients should leave a deposit
+before their next booking. Writing a deposit flag waits for a person's yes.
 
-**Live site:** https://mychair-eta.vercel.app
-**Health check:** https://mychair-eta.vercel.app/api/health (should show `{"status":"ok"}`)
+Everything here runs on made-up data. The person (Ben, the owner of Fade Factory), the shop, the
+clients and every appointment are fictional.
+
+- **What it does and why:** [docs/scoping.md](docs/scoping.md)
+- **Live address:** added once it's deployed.
 
 ## Run it on your computer
+
 1. `npm install`
-2. Copy the variable names from `.env.example` into a new file named `.env.local` and fill in your own Neon `development` connection string.
-3. `npm run dev`, then open the address it prints (usually http://localhost:3000).
+2. Copy `.env.example` to `.env.local` and fill in your own values (never commit `.env.local`).
+3. `npm run db:migrate` to create the tables in your database.
+4. `npm run dev`, then open http://localhost:3000
 
-## Docs
-- [Decision document](docs/decision-document.md)
-- [Data model](docs/data-model.md)
-- [Permissions](docs/permissions.md)
-- [API design](docs/api-design.md)
-- [System diagram](docs/system-diagram.md)
+## Checks
 
-(This README grows as the build does. Test accounts and the full run/test guide are added in the final section.)
+- `npm test` runs the automated tests.
+- `npm run typecheck` checks the TypeScript.

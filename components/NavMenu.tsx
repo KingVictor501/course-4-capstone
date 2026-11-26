@@ -9,19 +9,19 @@
 "use client";
 
 import Link from "next/link";
-// usePathname gives the current address without the ?query part, e.g. "/pro/clients".
+// usePathname gives the current address without the ?query part, e.g. "/admin/logs".
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import LogoutButton from "./LogoutButton";
 
 export type NavLink = { href: string; label: string };
 
-// True if this link is the page you're on. "/pro" is active only on /pro itself, so it doesn't
-// light up on /pro/clients too; deeper links count their own sub-pages (/pro/clients/<id>).
+// True if this link is the page you're on. A link is active on its own page and its sub-pages,
+// unless a longer link matches better.
 function isActive(pathname: string, href: string, all: NavLink[]): boolean {
   if (pathname === href) return true;
   if (!pathname.startsWith(href + "/")) return false;
-  // A longer link that also matches wins (e.g. /book/mine over /book).
+  // A longer link that also matches wins (e.g. /admin/logs over /admin).
   return !all.some((l) => l.href !== href && l.href.startsWith(href) && (pathname === l.href || pathname.startsWith(l.href + "/")));
 }
 

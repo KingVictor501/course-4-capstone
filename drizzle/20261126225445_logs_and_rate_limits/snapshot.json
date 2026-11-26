@@ -1,0 +1,394 @@
+{
+  "type": "base",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c7db4c6c-447f-4f30-bf26-b4e5832b11c3",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "log_entries"
+      ],
+      "writes": [
+        "s|tbl|public.log_entries",
+        "n|tbl|public.log_entries",
+        "e|tbl|public.log_entries",
+        "n|rel|public.log_entries",
+        "n|type|public.log_entries",
+        "n|rel|public.log_entries_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "rate_limits"
+      ],
+      "writes": [
+        "s|tbl|public.rate_limits",
+        "n|tbl|public.rate_limits",
+        "e|tbl|public.rate_limits",
+        "n|rel|public.rate_limits",
+        "n|type|public.rate_limits",
+        "n|rel|public.rate_limits_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "log_entries",
+        "log_entries_ts_idx"
+      ],
+      "writes": [
+        "s|idx|public.log_entries_ts_idx",
+        "n|idx|public.log_entries_ts_idx",
+        "e|idx|public.log_entries_ts_idx",
+        "n|rel|public.log_entries_ts_idx"
+      ],
+      "reads": [
+        "n|tbl|public.log_entries",
+        "n|sch|public",
+        "n|col|public.log_entries.ts"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "log_entries",
+        "log_entries_level_ts_idx"
+      ],
+      "writes": [
+        "s|idx|public.log_entries_level_ts_idx",
+        "n|idx|public.log_entries_level_ts_idx",
+        "e|idx|public.log_entries_level_ts_idx",
+        "n|rel|public.log_entries_level_ts_idx"
+      ],
+      "reads": [
+        "n|tbl|public.log_entries",
+        "n|sch|public",
+        "n|col|public.log_entries.level",
+        "n|col|public.log_entries.ts"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "log_entries",
+        "log_entries_event_ts_idx"
+      ],
+      "writes": [
+        "s|idx|public.log_entries_event_ts_idx",
+        "n|idx|public.log_entries_event_ts_idx",
+        "e|idx|public.log_entries_event_ts_idx",
+        "n|rel|public.log_entries_event_ts_idx"
+      ],
+      "reads": [
+        "n|tbl|public.log_entries",
+        "n|sch|public",
+        "n|col|public.log_entries.event",
+        "n|col|public.log_entries.ts"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "rate_limits",
+        "rate_limits_window_idx"
+      ],
+      "writes": [
+        "s|idx|public.rate_limits_window_idx",
+        "n|idx|public.rate_limits_window_idx",
+        "e|idx|public.rate_limits_window_idx",
+        "n|rel|public.rate_limits_window_idx"
+      ],
+      "reads": [
+        "n|tbl|public.rate_limits",
+        "n|sch|public",
+        "n|col|public.rate_limits.window_start"
+      ]
+    }
+  ],
+  "ddl": [
+    {
+      "schema": "public",
+      "name": "log_entries",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "rate_limits",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "ts",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "level",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "event",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "route",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "request_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "details",
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "rate_limits",
+      "name": "key",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "rate_limits",
+      "name": "window_start",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "rate_limits",
+      "name": "count",
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "1",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "log_entries_ts_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "ts",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "log_entries_level_ts_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "level",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "ts",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "log_entries_event_ts_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "event",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "ts",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "rate_limits",
+      "name": "rate_limits_window_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "window_start",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "rate_limits",
+      "name": "rate_limits_pkey",
+      "columns": [
+        "key",
+        "window_start"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "log_entries",
+      "name": "log_entries_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    }
+  ]
+}

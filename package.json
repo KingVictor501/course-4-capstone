@@ -1,5 +1,5 @@
 {
-  "name": "mychair",
+  "name": "course-4-capstone",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,23 +8,12 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test lib/*.test.ts lib/*/*.test.ts",
-    "corpus:count": "tsx scripts/corpus-count.ts",
-    "corpus:embed": "tsx scripts/corpus-embed.ts",
-    "ask": "tsx scripts/ask.ts",
-    "eval": "tsx scripts/eval.ts",
-    "injection:test": "tsx scripts/injection-test.ts",
-    "agent:triage": "tsx scripts/agent-triage.ts",
-    "admin:create": "tsx scripts/create-super-admin.ts",
-    "demo:seed": "tsx scripts/demo.ts seed",
-    "demo:remove": "tsx scripts/demo.ts remove",
-    "demo:reset": "tsx scripts/demo.ts reset",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",
     "@neondatabase/serverless": "^1.2.0",
-    "@vercel/blob": "^2.9.0",
     "drizzle-orm": "^1.0.0-rc.5",
     "jose": "^6.2.18",
     "next": "^16.4.5",

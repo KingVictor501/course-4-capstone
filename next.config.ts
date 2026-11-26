@@ -2,7 +2,7 @@
 // WHAT IT'S FOR: Next.js settings for the whole app. Right now: security headers on every page
 // and API response, and no "x-powered-by: Next.js" header (no need to tell attackers what we run).
 //   Content-Security-Policy  the browser only loads scripts, styles, images and fonts from our own
-//                            site, never plugins, and other sites can't put MyChair in a frame.
+//                            site, never plugins, and other sites can't put this app in a frame.
 //                            This is the "without nonces" policy from the Next.js security guide:
 //                            'unsafe-inline' is needed for Next.js's own inline scripts, and
 //                            'unsafe-eval' only while developing (never on the live site).

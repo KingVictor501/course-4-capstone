@@ -32,16 +32,15 @@ test("retryAfterSec counts down to the end of the window, never below 1", () => 
   assert.equal(retryAfterSec(Date.UTC(2026, 10, 23, 10, 14, 59, 999), 15), 1);
 });
 
-test("limitKey is stable, case-blind, and never contains the IP, email or phone", () => {
-  const a = limitKey("login_account", "Pat@Example.com", "secret-one");
-  assert.equal(a, limitKey("login_account", "pat@example.com ", "secret-one"));
-  assert.match(a, /^login_account:[0-9a-f]{32}$/);
-  assert.ok(!a.includes("example"));
+test("limitKey is stable, case-blind, and never contains the IP address", () => {
+  const a = limitKey("login_ip", "2001:DB8::1", "secret-one");
+  assert.equal(a, limitKey("login_ip", "2001:db8::1 ", "secret-one"));
+  assert.match(a, /^login_ip:[0-9a-f]{32}$/);
+  assert.ok(!a.includes("db8"));
   assert.ok(!limitKey("login_ip", "203.0.113.7", "secret-one").includes("203"));
 });
 
-test("limitKey differs by limit and by secret", () => {
-  assert.notEqual(limitKey("login_ip", "203.0.113.7", "s"), limitKey("demo_enter_ip", "203.0.113.7", "s"));
+test("limitKey differs by secret", () => {
   assert.notEqual(limitKey("login_ip", "203.0.113.7", "s1"), limitKey("login_ip", "203.0.113.7", "s2"));
 });
 
@@ -50,8 +49,6 @@ test("every limit is sensible and has a friendly message", () => {
     assert.ok(l.max > 0 && l.windowMin > 0 && l.windowMin <= 60, name);
     assert.ok(l.message.length > 0, name);
   }
-  // The per-account login limit is tighter than the per-IP one (a shop can share Wi-Fi).
-  assert.ok(RATE_LIMITS.login_account.max < RATE_LIMITS.login_ip.max);
 });
 
 test("ApiError carries extra headers such as Retry-After", () => {

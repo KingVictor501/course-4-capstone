@@ -1,1 +1,0 @@
-ALTER TABLE "pro_profiles" ADD COLUMN "allow_others_to_book" boolean DEFAULT false NOT NULL;

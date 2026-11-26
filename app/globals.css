@@ -96,7 +96,7 @@ p {
   color: var(--color-text-muted);
 }
 
-/* ---- Search page (Section 7/8) ---- */
+/* ---- Forms and buttons ---- */
 
 /* Forms stack their label, input and button vertically, with a gap. */
 .stack {

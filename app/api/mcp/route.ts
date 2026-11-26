@@ -1,7 +1,6 @@
 // app/api/mcp/route.ts
-// WHAT IT'S FOR: MyChair's LIVE MCP server, at https://mychair-eta.vercel.app/api/mcp.
-// An AI assistant (or the health-triage agent) connects here with the MCP key and gets ONE
-// read-only tool, get_weekly_health. Design: docs/mcp-remote-design.md.
+// WHAT IT'S FOR: the app's one door for workers, at <live address>/api/mcp. A worker connects
+// here with the door's key (MCP_API_KEY) and gets the abilities listed in lib/mcp/door.ts.
 // WHO USES IT: MCP clients such as Claude Code. Not linked from any page.
 // WHY THE NAME: folder path = URL (app/api/mcp -> /api/mcp); "route.ts" is the Next.js name
 // for an API route file.
@@ -9,7 +8,7 @@
 // ORDER MATTERS. Every request goes through these steps, in this order:
 //   1. the key check (lib/mcp-auth.ts): nothing else runs without the right key,
 //   2. the host and origin checks from the MCP toolkit,
-//   3. the MCP handler, which reads the request and runs the tool.
+//   3. the MCP handler, which reads the request and runs the ability.
 
 import {
   hostHeaderValidationResponse,
@@ -17,20 +16,17 @@ import {
   originValidationResponse,
 } from "@modelcontextprotocol/server";
 import { requireMcpKey } from "@/lib/mcp-auth";
-import { createHealthMcpHandler } from "@/lib/mcp/health-server";
-import { buildReport } from "@/lib/report";
-import { gatherReportInputs } from "@/lib/report-data";
+import { createDoorHandler } from "@/lib/mcp/door";
 import { withLogging } from "@/lib/with-logging";
 
-// Never cache: every call reads the latest numbers.
+// Never cache: every call reads the latest data.
 export const dynamic = "force-dynamic";
 
-// Built once and reused (the docs advise creating it outside the request). It gets the real
-// report from the database each time the tool is called.
-const handler = createHealthMcpHandler(async () => buildReport(await gatherReportInputs()));
+// Built once and reused (the docs advise creating it outside the request).
+const handler = createDoorHandler();
 
 // Which addresses may be used to reach this server. VERCEL_PROJECT_PRODUCTION_URL is set by
-// Vercel itself (for example "mychair-eta.vercel.app", no https://), so nothing is typed into
+// Vercel itself (for example "my-app.vercel.app", no https://), so nothing is typed into
 // the code. "localhost" is allowed only off production, for testing on my computer.
 function allowedHostnames(): string[] {
   const names: string[] = [];

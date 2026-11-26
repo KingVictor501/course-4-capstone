@@ -3,7 +3,7 @@
 //     log.info("request_done", { method: "GET", status: 200 });
 // Each call makes ONE line of JSON (timestamp, level, event name, details) that goes to two places:
 //   1. Standard output / error, which Vercel's log stream shows (the free plan keeps only 1 hour).
-//   2. The log_entries table in the database, so the Super Admin dashboard can search it (14 days).
+//   2. The log_entries table in the database, so the status page can search it (14 days).
 // Details are always cleaned by lib/redact.ts first, so a secret logged by mistake is hidden.
 // WHO USES IT: lib/with-logging.ts (every API route), app/api/health/route.ts, scripts/migrate.ts.
 // WHY THE NAME: it's the logger; ".ts" = no screen code.
@@ -88,15 +88,6 @@ export function drainPendingLogs(): LogEntry[] {
   return pending.splice(0, pending.length);
 }
 
-// A value is only saved in the shop_id / user_id columns if it is a real UUID;
-// otherwise it stays in the details and the column stays empty.
-function asUuid(value: unknown): string | null {
-  return typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-    ? value
-    : null;
-}
-
 // Saves the waiting log lines to the log_entries table, and now and then deletes lines older
 // than 14 days. Never throws: a logging problem must not break a visitor's request.
 export async function flushLogs(): Promise<void> {
@@ -116,8 +107,6 @@ export async function flushLogs(): Promise<void> {
         level: entry.level,
         event: entry.event,
         route: typeof entry.details.route === "string" ? entry.details.route : null,
-        shopId: asUuid(entry.details.shopId),
-        userId: asUuid(entry.details.userId),
         requestId: typeof entry.details.requestId === "string" ? entry.details.requestId : null,
         details: entry.details,
       })),
@@ -128,9 +117,6 @@ export async function flushLogs(): Promise<void> {
       lastPruneAt = Date.now();
       const cutoff = new Date(Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000);
       await db.delete(logEntries).where(lt(logEntries.ts, cutoff));
-      // Site performance readings are kept a little longer (30 days), for trends.
-      const { webVitals } = await import("./db/schema");
-      await db.delete(webVitals).where(lt(webVitals.ts, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
       // Rate limit counters are only needed for their window (at most an hour), so keep a day.
       const { rateLimits } = await import("./db/schema");
       await db.delete(rateLimits).where(lt(rateLimits.windowStart, new Date(Date.now() - 24 * 60 * 60 * 1000)));

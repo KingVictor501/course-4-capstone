@@ -1,24 +1,23 @@
 // components/LoginForm.tsx
-// WHAT IT'S FOR: the login form. Sends the email-or-phone and password to POST /api/auth/login.
-// On success the server has already set the session cookie, so this just moves to the right
-// home page for the person's role. On failure it shows the server's generic message.
+// WHAT IT'S FOR: the sign-in form on /login: one password-style box for the status key and a
+// Sign in button. It sends the key once to POST /api/auth/login and, if the server accepts it,
+// goes to the logs. The key is never put in the address bar or saved in the browser.
 // WHO USES IT: app/login/page.tsx.
-// WHY THE NAME: the login form; ".tsx" = screen code.
+// WHY THE NAME: the login form; ".tsx" = screen code. "use client" because it has a form and
+// "Signing in…" states.
 
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { HOME_FOR_ROLE } from "@/lib/auth/home";
-import type { MeResponse } from "@/lib/types";
 
 export default function LoginForm() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+  const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Sends the key, then goes to the logs, or shows the server's short message.
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -27,14 +26,15 @@ export default function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ key }),
       });
-      const body = (await res.json()) as MeResponse & { error?: { message: string } };
-      if (!res.ok || !body.user) {
-        setError(body.error?.message ?? "Couldn't log in. Try again.");
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: { message: string } };
+        setError(body.error?.message ?? "Couldn't sign in. Try again.");
         return;
       }
-      router.push(HOME_FOR_ROLE[body.user.role]);
+      setKey("");
+      router.push("/admin/logs");
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
@@ -46,12 +46,8 @@ export default function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1">
-        <span>Email or phone</span>
-        <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} autoComplete="username" required />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span>Password</span>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+        <span>Status key</span>
+        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="current-password" required />
       </label>
       {error && (
         <p role="alert" className="m-0 rounded border border-border bg-surface p-2 text-sm text-text">
@@ -59,7 +55,7 @@ export default function LoginForm() {
         </p>
       )}
       <button type="submit" disabled={busy}>
-        {busy ? "Logging in…" : "Log in"}
+        {busy ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

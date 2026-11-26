@@ -91,7 +91,7 @@ test("masks an email hiding inside normal text", () => {
 });
 
 test("masks the password inside a database address", () => {
-  const out = scrubString("connect failed postgresql://alice:s3cretpass@db.example.com/mychair");
+  const out = scrubString("connect failed postgresql://alice:s3cretpass@db.example.com/appdb");
   assert.ok(!out.includes("s3cretpass"));
   assert.ok(!out.includes("alice"));
   assert.ok(out.includes("db.example.com"));

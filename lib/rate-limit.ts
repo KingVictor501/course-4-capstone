@@ -1,20 +1,19 @@
 // lib/rate-limit.ts
-// WHAT IT'S FOR: rate limits ("at most N tries in M minutes") on the public front door: login,
-// guest booking, demo entry, the performance beacon, the public Ask box, and client search.
+// WHAT IT'S FOR: rate limits ("at most N tries in M minutes") on the public front door: for now,
+// signing in to the status page.
 // The counts live in the database (the rate_limits table), not in server memory, because Vercel
 // runs the app on many servers at once and each one's memory is separate.
 //   RATE_LIMITS      every limit in one list: how many, how long, and what the visitor is told
 //   clientIp         the visitor's IP address, from the header Vercel sets
 //   windowStart      which time window "now" falls in (fixed windows, e.g. 10:00 to 10:15)
 //   retryAfterSec    seconds until the current window ends
-//   limitKey         a one-way scrambled key, so no IP address, email or phone is ever stored
+//   limitKey         a one-way scrambled key, so no IP address is ever stored
 //   enforceRateLimit counts one try and stops the request with 429 when the limit is passed
-// WHO USES IT: app/api/auth/login, app/api/guest/appointments, app/api/guest/shops,
-// app/api/appointments, app/api/demo/enter, app/api/vitals, app/api/ask and app/api/clients/search. Tested by lib/rate-limit.test.ts.
+// WHO USES IT: app/api/auth/login. Tested by lib/rate-limit.test.ts.
 // WHY THE NAME: it limits the rate of requests; ".ts" = no screen code.
 //
 // PRIVACY: the database stores only the scrambled key and a count. Log lines name the limit
-// (for example "login_ip"), never the IP, email or phone.
+// (for example "login_ip"), never the IP address.
 
 import { createHmac } from "node:crypto";
 import { ApiError } from "./api-error";
@@ -23,25 +22,8 @@ import { log } from "./logger";
 // Every limit. "max" tries are allowed per "windowMin" minutes; the next one gets 429.
 // Sized so a real person never hits them, but a script hammering a form is stopped quickly.
 export const RATE_LIMITS = {
-  // Login, counted by IP (a whole shop may share one Wi-Fi, so this one is roomier)...
-  login_ip: { max: 30, windowMin: 15, message: "Too many login attempts. Please try again in a few minutes." },
-  // ...and by the email or phone being tried, so one account can't be guessed at from many IPs.
-  login_account: { max: 10, windowMin: 15, message: "Too many login attempts. Please try again in a few minutes." },
-  // Guest booking needs no account, so it's capped by IP and by the phone number used.
-  guest_booking_ip: { max: 10, windowMin: 60, message: "Too many bookings from here. Please try again in a little while." },
-  guest_booking_phone: { max: 5, windowMin: 60, message: "Too many bookings for this phone number. Please try again in a little while." },
-  // The predictive shop search asks again as the guest types (after a short pause), so it's roomy.
-  shop_search_ip: { max: 300, windowMin: 10, message: "Too many searches. Please wait a few minutes and try again." },
-  // A logged-in client booking, per account.
-  client_booking_user: { max: 20, windowMin: 60, message: "Too many bookings. Please try again in a little while." },
-  // One-click demo entry creates a session each time.
-  demo_enter_ip: { max: 30, windowMin: 60, message: "Too many demo sessions from here. Please try again in a little while." },
-  // Every page view sends up to five performance readings, so this one is generous.
-  vitals_ip: { max: 200, windowMin: 10, message: "Too many readings." },
-  // Each question calls the AI providers (which cost money). The global hourly cap still applies too.
-  ask_ip: { max: 10, windowMin: 60, message: "You've asked a lot of questions. Please try again in a little while." },
-  // Client search, per logged-in user, so nobody can walk through every phone number.
-  client_search_user: { max: 60, windowMin: 10, message: "Too many searches. Please wait a few minutes and try again." },
+  // Signing in to the status page, counted by IP, so nobody can guess the key by trying again and again.
+  login_ip: { max: 30, windowMin: 15, message: "Too many sign-in attempts. Please try again in a few minutes." },
 } as const;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

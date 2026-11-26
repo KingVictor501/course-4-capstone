@@ -1,73 +1,53 @@
 // lib/auth/session.ts
-// WHAT IT'S FOR: the login session. After a correct password, the server makes a small signed
-// token (a JWT) saying "this is user X, role Y, shop Z, until time T", and stores it in a cookie.
-// On every later request the server checks the signature before trusting it.
-//   - Signed with SESSION_SECRET using HS256 (via the jose package). Anyone can READ a JWT, but
-//     nobody without the secret can CHANGE it: editing "role":"client" to "super_admin" breaks
-//     the signature, and jwtVerify refuses it.
-//   - It expires (7 days), so a stolen cookie doesn't work forever.
-//   - The cookie is httpOnly (page scripts can't read it), secure on HTTPS, and SameSite=Lax
-//     (other sites can't make the browser send it with their form posts).
-// WHO USES IT: app/api/auth/* routes and lib/auth/current-user.ts. Tested by lib/auth/auth.test.ts.
-// WHY THE NAME: the login "session"; ".ts" = no screen code.
+// WHAT IT'S FOR: the status page's sign-in session. After someone types the right STATUS_KEY,
+// the server gives their browser a signed token in a cookie. The token says only "signed in to
+// the status page" and when it expires; it holds no key, name or email.
+//   - The token is signed with SESSION_SECRET (from .env), so nobody can fake or edit one.
+//   - The cookie is httpOnly (page scripts can't read it), Secure on the deployed site (HTTPS
+//     only), and SameSite=Lax (not sent along when another site links or posts to this one).
+//   - It expires after SESSION_DAYS; signing out deletes it straight away.
+// HOW THE KEY REACHES THE PAGE: the key is typed into the sign-in form and sent once in the body
+// of a POST over HTTPS. It is never in a link, never stored in the browser, and never logged.
+// What the browser keeps is only this signed token, in the cookie above.
+// WHO USES IT: app/api/auth/login and logout, and lib/auth/status-access.ts. Tested by
+// lib/auth/auth.test.ts.
+// WHY THE NAME: the sign-in "session"; ".ts" = no screen code.
 
-// SignJWT makes and signs a token; jwtVerify checks the signature and the expiry.
+// jwtVerify and SignJWT come from the jose package: they sign and check tokens (JWTs).
 import { jwtVerify, SignJWT } from "jose";
-import type { Role } from "../types";
 
-export const SESSION_COOKIE = "mychair_session";
+export const SESSION_COOKIE = "status_session";
 export const SESSION_DAYS = 7;
 const ALG = "HS256";
-const ISSUER = "mychair";
+const ISSUER = "course-4-capstone";
+// The only thing a token can say.
+const SUBJECT = "status";
 
-// What the token says about the person. Kept small: IDs and the role, never a name or email.
-// "actorId" is set only while the Super Admin is viewing the app as someone else ("view as"):
-// it's the Super Admin's own ID, so the session can be switched back and every action traced.
-export type SessionClaims = { userId: string; role: Role; shopId: string | null; demo: boolean; actorId?: string };
-
-// How long a "view as" session lasts before the Super Admin has to start it again.
-export const VIEW_AS_HOURS = 1;
-
-// The secret as bytes. A missing or short secret stops the app from signing anything.
+// The signing secret as bytes. Refuses to run with a missing or short secret.
 function secretKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) throw new Error("SESSION_SECRET is missing or shorter than 32 characters");
   return new TextEncoder().encode(secret);
 }
 
-// Makes the signed token for a user who just logged in.
-// A "view as" token lasts VIEW_AS_HOURS instead of SESSION_DAYS.
-export async function createSessionToken(claims: SessionClaims): Promise<string> {
-  return new SignJWT({ role: claims.role, shopId: claims.shopId, demo: claims.demo, ...(claims.actorId ? { actorId: claims.actorId } : {}) })
-    .setProtectedHeader({ alg: ALG })
-    .setSubject(claims.userId)
-    .setIssuer(ISSUER)
-    .setIssuedAt()
-    .setExpirationTime(claims.actorId ? `${VIEW_AS_HOURS}h` : `${SESSION_DAYS}d`)
-    .sign(secretKey());
+// Makes a signed token that says "signed in to the status page", valid for SESSION_DAYS.
+export async function createSessionToken(): Promise<string> {
+  return new SignJWT({}).setProtectedHeader({ alg: ALG }).setSubject(SUBJECT).setIssuer(ISSUER).setIssuedAt().setExpirationTime(`${SESSION_DAYS}d`).sign(secretKey());
 }
 
-// Checks a token and returns what it says, or null if it's missing, tampered with, expired, or
-// signed with a different secret. Never throws, so a bad cookie just means "not logged in".
-export async function readSessionToken(token: string | undefined): Promise<SessionClaims | null> {
-  if (!token) return null;
+// True only for a token this server signed, that hasn't expired. Anything else (missing,
+// edited, expired, signed with another secret, unsigned) is false.
+export async function isValidSessionToken(token: string | undefined): Promise<boolean> {
+  if (!token) return false;
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: [ALG], issuer: ISSUER });
-    const role = payload.role;
-    if (typeof payload.sub !== "string" || !isRole(role)) return null;
-    return {
-      userId: payload.sub,
-      role,
-      shopId: typeof payload.shopId === "string" ? payload.shopId : null,
-      demo: payload.demo === true,
-      ...(typeof payload.actorId === "string" ? { actorId: payload.actorId } : {}),
-    };
+    return payload.sub === SUBJECT;
   } catch {
-    return null;
+    return false;
   }
 }
 
-// The cookie settings, shared by login (set) and logout (clear).
+// The cookie settings, in one place so sign-in and sign-out match.
 export function sessionCookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
@@ -76,8 +56,4 @@ export function sessionCookieOptions(maxAgeSeconds: number) {
     path: "/",
     maxAge: maxAgeSeconds,
   };
-}
-
-function isRole(value: unknown): value is Role {
-  return value === "super_admin" || value === "owner" || value === "pro" || value === "client";
 }

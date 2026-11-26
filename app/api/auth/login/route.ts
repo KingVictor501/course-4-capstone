@@ -1,82 +1,43 @@
 // app/api/auth/login/route.ts
-// WHAT IT'S FOR: POST /api/auth/login with { identifier, password }. "identifier" is an email or
-// a phone number. On success it sets the signed session cookie and returns who logged in.
-// On failure it always says the same thing ("Invalid email, phone or password"), so nobody can
-// use it to find out which accounts exist.
-// WHO USES IT: the login page (components/LoginForm.tsx) and curl.
-// WHY THE NAME: folder path = URL (app/api/auth/login -> /api/auth/login).
+// WHAT IT'S FOR: POST /api/auth/login with { key } signs a browser in to the status page. The
+// key is compared with STATUS_KEY from .env (lib/keys.ts, constant time). If it matches, the
+// browser gets a signed session cookie (lib/auth/session.ts) and the key itself is forgotten.
+// A wrong key always gets the same short answer, and tries are rate-limited by IP.
+// WHO USES IT: components/LoginForm.tsx.
+// WHY THE NAME: folder path = URL (/api/auth/login).
 //
-// RATE LIMIT: 30 tries per 15 minutes per IP, and 10 per 15 minutes per email or phone (429).
-//
-// PRIVACY: logs login_attempt with the user ID (if found) and ok true/false. Never the email,
-// phone or password.
+// PRIVACY: logs status_sign_in with ok: true or false only. Never the key, never the body.
 
-import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { ApiError } from "@/lib/api-error";
-import { parseIdentifier } from "@/lib/auth/identifier";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSessionToken, SESSION_COOKIE, SESSION_DAYS, sessionCookieOptions } from "@/lib/auth/session";
-import { getDb } from "@/lib/db/client";
-import { users } from "@/lib/db/schema";
-import { isDemoModeOn } from "@/lib/demo/mode";
+import { isValidKey } from "@/lib/keys";
 import { log } from "@/lib/logger";
 import { clientIp, enforceRateLimit } from "@/lib/rate-limit";
-import type { MeResponse, Role } from "@/lib/types";
 import { withLogging } from "@/lib/with-logging";
 
 export const dynamic = "force-dynamic";
 
-// The only input accepted. Lengths are capped so nobody can send a huge body.
-const body = z.object({
-  identifier: z.string().trim().min(3).max(200),
-  password: z.string().min(1).max(200),
-});
-
-const INVALID = "Invalid email, phone or password.";
-
-// A hash of a random value, made once per server start, used only for the timing match above.
-let dummy: Promise<string> | null = null;
-function dummyHash(): Promise<string> {
-  dummy ??= hashPassword(crypto.randomUUID());
-  return dummy;
-}
+// What the form may send: the key, and nothing else.
+const body = z.object({ key: z.string().min(1).max(200) }).strict();
 
 export const POST = withLogging("/api/auth/login", async (request) => {
-  // Rate limits (lib/rate-limit.ts): by IP first, then by the email or phone being tried, before
-  // any password is checked, so guessing is slow from one place and against one account.
+  // Rate limit by IP first, before the key is even looked at, so guessing is slow.
   await enforceRateLimit("login_ip", clientIp(request.headers));
   const parsed = body.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) throw new ApiError(400, "BAD_INPUT", "Enter your email or phone and your password.");
+  if (!parsed.success) throw new ApiError(400, "BAD_INPUT", "Enter the status key.");
 
-  const id = parseIdentifier(parsed.data.identifier);
-  await enforceRateLimit("login_account", id?.value ?? parsed.data.identifier);
-  if (!id) {
-    log.info("login_attempt", { ok: false });
-    throw new ApiError(401, "INVALID_LOGIN", INVALID);
+  const expected = process.env.STATUS_KEY;
+  if (!expected) {
+    // No key on the server: nobody can sign in, rather than everybody.
+    log.error("status_key_not_configured", {});
+    throw new ApiError(503, "NOT_CONFIGURED", "Sign-in isn't available right now.");
   }
+  const ok = isValidKey(parsed.data.key, expected);
+  log.info("status_sign_in", { ok });
+  if (!ok) throw new ApiError(401, "INVALID_KEY", "That key didn't work.");
 
-  const [user] = await getDb()
-    .select({ id: users.id, role: users.role, shopId: users.shopId, name: users.name, isDemo: users.isDemo, passwordHash: users.passwordHash })
-    .from(users)
-    .where(id.kind === "email" ? eq(users.email, id.value) : eq(users.phone, id.value));
-
-  // When no account matches, still run one full password check against a throwaway hash, so the
-  // response takes the same time either way and can't reveal which emails or phones exist.
-  const ok = user
-    ? await verifyPassword(parsed.data.password, user.passwordHash)
-    : (await verifyPassword(parsed.data.password, await dummyHash()), false);
-  // A demo account can only log in while demo mode is on.
-  const demoBlocked = ok && user?.isDemo === true && !(await isDemoModeOn());
-  log.info("login_attempt", { userId: user?.id, ok: ok && !demoBlocked });
-  if (!user || !ok || demoBlocked) throw new ApiError(401, "INVALID_LOGIN", INVALID);
-
-  const token = await createSessionToken({ userId: user.id, role: user.role as Role, shopId: user.shopId, demo: user.isDemo });
-  (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(SESSION_DAYS * 24 * 60 * 60));
-
-  const res: MeResponse = {
-    user: { id: user.id, role: user.role as Role, shopId: user.shopId, name: user.name, isDemo: user.isDemo },
-  };
-  return Response.json(res);
+  (await cookies()).set(SESSION_COOKIE, await createSessionToken(), sessionCookieOptions(SESSION_DAYS * 24 * 60 * 60));
+  return Response.json({ ok: true });
 });

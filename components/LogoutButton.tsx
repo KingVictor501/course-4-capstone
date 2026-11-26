@@ -8,8 +8,7 @@
 
 import { useRouter } from "next/navigation";
 
-// "label" and "goTo" let the demo banner say "Leave demo" and go back to /demo.
-export default function LogoutButton({ label = "Log out", goTo = "/login" }: { label?: string; goTo?: string }) {
+export default function LogoutButton({ label = "Log out", goTo = "/" }: { label?: string; goTo?: string }) {
   const router = useRouter();
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);

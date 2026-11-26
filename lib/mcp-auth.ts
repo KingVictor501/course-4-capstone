@@ -1,17 +1,13 @@
 // lib/mcp-auth.ts
 // WHAT IT'S FOR: the lock on the live MCP server (/api/mcp). A request must carry the secret
 // MCP_API_KEY as "Authorization: Bearer <key>", or it is stopped here, before the MCP code,
-// the database, or the request body are touched. See docs/mcp-remote-design.md.
+// the database, or the request body are touched.
 // WHO USES IT: app/api/mcp/route.ts (first line of the handler). Tested by lib/mcp-auth.test.ts.
 // WHY THE NAME: the MCP lock; ".ts" = no screen code.
-//
-// It is a SEPARATE key from ADMIN_API_KEY on purpose: if this key leaks, it opens one
-// read-only tool, and the admin key used by Make stays safe.
 
 import { ApiError } from "./api-error";
-// isValidAdminKey (from lib/admin-auth.ts) is the constant-time key comparison we already
-// test. It works for any two secrets, not only the admin key, so we reuse it.
-import { isValidAdminKey } from "./admin-auth";
+// isValidKey (lib/keys.ts) compares keys in constant time, so timing can't leak the key.
+import { isValidKey } from "./keys";
 import { log } from "./logger";
 
 // Pulls the key out of an "Authorization: Bearer <key>" header. Returns null if the header is
@@ -32,8 +28,8 @@ export function requireMcpKey(request: Request): void {
     throw new ApiError(503, "NOT_CONFIGURED", "This feature is not available right now.");
   }
 
-  if (!isValidAdminKey(bearerToken(request.headers.get("authorization")), expected)) {
-    // We log THAT a bad key was tried, never the key itself. The weekly report counts these.
+  if (!isValidKey(bearerToken(request.headers.get("authorization")), expected)) {
+    // We log THAT a bad key was tried, never the key itself.
     log.warn("mcp_auth_failed", {});
     throw new ApiError(401, "UNAUTHORIZED", "A valid key is required.");
   }

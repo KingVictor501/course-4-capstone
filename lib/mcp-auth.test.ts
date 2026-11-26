@@ -76,7 +76,7 @@ test("a wrong key gets 401", () => {
   assert.equal(outcome(requestWith("Bearer wrong-key")), 401);
 });
 
-test("the admin key header does not open the MCP lock", () => {
+test("a key sent in the wrong header does not open the lock", () => {
   const request = new Request("http://localhost/api/mcp", { method: "POST", headers: { "x-admin-key": TEST_KEY } });
   assert.equal(outcome(request), 401);
 });

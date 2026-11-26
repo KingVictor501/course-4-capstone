@@ -1,5 +1,6 @@
 // app/api/auth/logout/route.ts
-// WHAT IT'S FOR: POST /api/auth/logout clears the session cookie. Safe to call when not logged in.
+// WHAT IT'S FOR: POST /api/auth/logout signs this browser out of the status page by deleting
+// its session cookie.
 // WHO USES IT: the Log out button (components/LogoutButton.tsx).
 // WHY THE NAME: folder path = URL (app/api/auth/logout -> /api/auth/logout).
 
