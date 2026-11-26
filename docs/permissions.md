@@ -1,0 +1,90 @@
+# MyChair – Roles and Permissions
+
+This is the rulebook. Every route checks it **on the server**, using one shared permission helper. Hiding a button is not security.
+
+Two rules apply to every row below:
+- **Shop rule:** a user can only touch records with their own `shop_id`. (Super Admin is the only exception.)
+- **Ownership rule:** "own" means the record belongs to that user. "Their" client means a client who has an appointment or style card with that pro.
+
+**Super Admin has no limits:** every row is ✅ for Super Admin, in any shop.
+
+Legend: ✅ allowed, ❌ not allowed, 🔸 allowed with a limit (explained in the notes column).
+
+An owner who also cuts hair has both the Owner and Pro columns. They turn this on themselves with "Take appointments myself" on `/owner`, which gives them a pro profile: from then on they're on the team and the booking pages, and they use `/pro` (their own schedule, clients and settings) like any pro.
+
+| Action | Super Admin | Owner | Pro | Client | Notes |
+|---|---|---|---|---|---|
+| **Accounts** | | | | | |
+| Sign up as a client | ✅ | ✅ | ✅ | ✅ | open to anyone |
+| Join as a pro | ✅ | ❌ | 🔸 | ❌ | only through a pro invite link, or by an account the owner or Super Admin created for them |
+| Create a pro account for someone | ✅ | 🔸 | ❌ | ❌ | owner: own shop only. They enter the pro's name, email, and role. **The owner never sets or sees the password:** the pro gets a one-time setup link and chooses their own. |
+| Create a pro invite link | ✅ | ✅ | ❌ | ❌ | the link lets a pro sign up and join the shop |
+| Create a client invite link | ✅ | 🔸 | 🔸 | ❌ | pro: a link for their own page only. Owner: only if they also work as a pro. The app does **not** send texts: the pro copies or shares the link and sends it from their own phone. |
+| Log in / log out | ✅ | ✅ | ✅ | ✅ | |
+| View or edit own account | ✅ | ✅ | ✅ | ✅ | |
+| **Shop** | | | | | |
+| Create a shop | ✅ | ❌ | ❌ | ❌ | one shop for now |
+| Edit shop settings (name, time zone, booking rules) | ✅ | 🔸 | ❌ | ❌ | owner: own shop only |
+| Allow pros to set their own cancellation window, or to choose whether their policy is displayed | ✅ | 🔸 | ❌ | ❌ | owner: own shop only. Both options start off. |
+| **Team and pay** | | | | | |
+| View list of pros | ✅ | ✅ | ✅ | ✅ | clients see name, status, services, prices only |
+| Change a pro's role | ✅ | ✅ | ❌ | ❌ | a pro cannot change their own role |
+| Set station number | ✅ | ✅ | ❌ | ❌ | |
+| See pay structure | ✅ | ✅ | ❌ | ❌ | hidden from pros and clients |
+| Set pay structure | ✅ | ✅ | ❌ | ❌ | |
+| Take appointments yourself ("your chair") | ❌ | 🔸 | – | ❌ | owner: their own account only, in their own shop. Starts with every service at the standard price and a teammate's hours. Turning it off is refused while they have upcoming appointments. Pros already take appointments. |
+| **Services and prices** | | | | | |
+| View services and prices | ✅ | ✅ | ✅ | ✅ | |
+| Create or edit a service (name, description, duration) | ✅ | ✅ | 🔸 | ❌ | pro: only adds or removes services on their own list |
+| Set standard prices | ✅ | ✅ | ❌ | ❌ | |
+| Set a pro's custom prices or turn "Standard price" on | ✅ | ✅ | ❌ | ❌ | |
+| Semantic service search | ✅ | ✅ | ✅ | ✅ | |
+| **Schedule** | | | | | |
+| Edit own hours, breaks, days off | ✅ | ✅ | ✅ | ❌ | |
+| View any pro's schedule in the shop | ✅ | ✅ | 🔸 | ❌ | pro: own only |
+| Set own live status | ✅ | ✅ | ✅ | ❌ | |
+| Extend own booking window beyond 5 days | ✅ | ✅ | ✅ | ❌ | pro: own window only |
+| Set own cancellation window / choose whether own policy shows on their profile | ✅ | ✅ | 🔸 | ❌ | pro: only if the owner has turned on that option. **Whatever is chosen, the window that applies is always shown to the client when they confirm a booking.** |
+| See a pro's open times | ✅ | ✅ | ✅ | ✅ | |
+| **Appointments** | | | | | |
+| Book an appointment | ✅ | ✅ | ❌ | 🔸 | client: for themselves, inside the pro's booking window |
+| Book without an account (guest) | – | – | – | – | anyone, no login: see any pro's open times and book with first name and phone, at real shops (and demo shops while demo mode is on). The booking goes on the shop's client with that phone, or a new client. A guest sees nothing about existing clients and changes or cancels by calling the shop |
+| View appointments | ✅ | 🔸 | 🔸 | 🔸 | owner: whole shop. Pro: own. Client: own. |
+| Reschedule or cancel | ✅ | ✅ | 🔸 | 🔸 | client: own, outside the cancellation window. Pro: own appointments. |
+| Change status (in chair, completed, no-show) | ✅ | ✅ | 🔸 | ❌ | pro: own appointments only. Allowed order: waiting → in chair → completed; waiting → no-show; waiting or in chair → cancelled |
+| Set payment status | ✅ | ✅ | 🔸 | ❌ | pro: own appointments only (record only, no real payments) |
+| **Clients and style cards** | | | | | |
+| View a client | ✅ | ✅ | 🔸 | ❌ | owner and Super Admin: every client, any time. pro: **only their own clients (anyone they've had an appointment or card with), and only name, phone and style cards.** Their "Your clients" list shows only clients who picked them as preferred pro. Never email. |
+| Set or clear my preferred pro | ❌ | ❌ | ❌ | ✅ | client: their own, and only a pro in their shop. A client appears under a pro's "Your clients" only when that pro is their preferred pro. Clients can still book with any pro |
+| Client search | ✅ | ✅ | 🔸 | ❌ | owner: by name or phone, in their shop. Super Admin: by name or phone, in every shop. pro: **by full phone number only**, in their shop, to find and book a client who calls in |
+| Add a client (phone-in) | ✅ | ✅ | ✅ | ❌ | first name and phone only; the phone must not belong to another account |
+| Book for a client | ✅ | ✅ | 🔸 | ❌ | pro: for a client of their shop, with themselves, or with another pro in the shop who turned on "Let other pros book for me" |
+| Turn "Let other pros book for me" on or off | ✅ | ❌ | 🔸 | ❌ | pro: their own setting only, on /pro/settings. Off by default |
+| View client email (if the client gave one) | ✅ | ✅ | ❌ | 🔸 | client: own only. Phone is required for clients and is visible to their pros. |
+| Create or edit a style card | ✅ | ❌ | 🔸 | ❌ | pro: only their own cards |
+| View a style card | ✅ | ✅ | 🔸 | ❌ | owner and Super Admin: every card, any time. pro: at any time, every pro's card for one of their own clients (theirs to edit, others read-only, with photos) |
+| Upload a style card photo | ✅ | ❌ | 🔸 | ❌ | own cards only. JPG, PNG, WebP, max 4 MB, private storage |
+| Grant or remove style-card sharing between two pros | ✅ | ✅ | ❌ | ❌ | the pros must ask the owner |
+| See the no-show count | ✅ | ✅ | 🔸 | ❌ | pro: for their own clients. Strikes are counted per shop. They are a record only and never block booking. |
+| Remove a no-show strike | ✅ | ✅ | 🔸 | ❌ | pro: only for an appointment they were reserved for (for example, the pro was running late). The owner can see all strikes and removals. |
+| **Super Admin tools** | | | | | |
+| View logs | ✅ | ❌ | ❌ | ❌ | /admin/logs. Real Super Admin only: never the demo Super Admin, never during "view as" |
+| View metrics and web performance | ✅ | ❌ | ❌ | ❌ | /metrics: a real Super Admin's login, or the admin key |
+| Turn demo mode on or off, reset the demo | ✅ | ❌ | ❌ | ❌ | real Super Admin only (or the admin key from a script). Logged as demo_mode_changed and demo_reset with the Super Admin's ID |
+| Open a demo owner or pro view from /demo | – | – | – | – | anyone, no login, only while demo mode is on, and only demo owners and pros in demo shops. The session stays inside the demo shops, every page shows a "Demo" banner, and the Super Admin pages are closed to it |
+| View stack links | ✅ | ❌ | ❌ | ❌ | |
+| Run or view service embedding status | ✅ | ❌ | ❌ | ❌ | |
+| Run a semantic-search test in the dashboard | ✅ | ❌ | ❌ | ❌ | |
+| "View as" another user (audited) | ✅ | ❌ | ❌ | ❌ | owners and pros only (never a client or another Super Admin). Logged as view_as_started and view_as_ended; lasts up to an hour; a banner shows "Viewing as …" with "Stop viewing as". Admin tools are closed while viewing as |
+
+## Client invite links
+- A client invite link opens the sign-up page with that pro already chosen, so the new client is that pro's client right after signing up.
+- It is active for 24 hours and can be used once. It counts as used only after the client's account is created successfully, so a failed sign-up (for example, a typo) does not burn the link. The pro can make another one at any time.
+- The link is a random secret stored hashed (same design as pro invites). Creating links is rate limited.
+- The link never contains the client's name, phone, or email.
+
+## What each failure returns
+- Not logged in: **401**.
+- Logged in but not allowed (wrong role): **403**.
+- A record in another shop, or another pro's client: **404** (so we don't confirm it exists).
+- Rate limit hit: **429**.

@@ -1,0 +1,121 @@
+# MyChair – API Design
+
+A REST API: the web app and the future mobile apps call the same URLs. All business rules (permissions, double-booking, prices) live in these routes, never only in browser code.
+
+## Conventions
+- Base path: `/api`. Data is JSON.
+- **Web login** uses an httpOnly cookie holding a signed, expiring token. **Mobile** will send the same token as `Authorization: Bearer <token>`.
+- Success: the data, with status 200/201. Failure: `{ "error": { "code": "FORBIDDEN", "message": "Friendly short text" } }`. Never a stack trace.
+- Statuses: 400 bad input, 401 not logged in, 403 not allowed, 404 not found (or not yours), 409 conflict (double-booking), 429 too many requests.
+- Every write validates its body on the server. Responses never include `password_hash`, tokens, or `pay_*` fields unless the caller is owner or Super Admin.
+- "Public" means no login needed. Everything else is protected and follows `docs/permissions.md`.
+- Rate limited, with counters stored in the `rate_limits` table so the limits hold across every server (`lib/rate-limit.ts`). Over the limit, the reply is 429 with a friendly message and a `Retry-After` header (seconds). IPs, emails and phones are stored only as keyed one-way hashes.
+
+  | Route | Limit |
+  |---|---|
+  | `POST /api/auth/login` | 30 per 15 min per IP, and 10 per 15 min per email or phone |
+  | `POST /api/guest/appointments` | 10 per hour per IP, and 5 per hour per phone |
+  | `GET /api/guest/shops` | 300 per 10 min per IP |
+  | `POST /api/appointments` | 20 per hour per account |
+  | `POST /api/demo/enter` | 30 per hour per IP |
+  | `POST /api/ask` | 10 per hour per IP (plus the global hourly cap) |
+  | `GET /api/clients/search` | 60 per 10 min per account |
+  | `POST /api/vitals` | 200 per 10 min per IP |
+
+## Endpoints
+
+### Health and tracking
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/health` | none | `{ "status": "ok" }` (and confirms DB reachable) | Public |
+| POST | `/api/vitals` | `{ name, value, rating, page }` (one Core Web Vitals reading; extra fields dropped, IDs removed from the page) | 204 | Public (rate limited) |
+
+### Auth
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| POST | `/api/auth/signup` | `{ name, phone, password, email?, inviteToken? }` | 201 `{ user }` and sets cookie. With a valid `inviteToken`, the new client is attached to the inviting pro and the link is marked used. | Public (creates a client; phone required, email optional) |
+| POST | `/api/auth/login` | `{ identifier, password }` where identifier is a phone number or an email | 200 `{ user }` and sets cookie | Public |
+| POST | `/api/auth/logout` | none | 204 | Protected (any role) |
+| GET | `/api/me` | none | `{ user }` | Protected (any role) |
+| POST | `/api/auth/join` | `{ inviteToken, name, email, password, phone? }` (email required for pros) | 201 `{ user }` as a pro | Public (needs a valid invite) |
+| POST | `/api/auth/setup-password` | `{ inviteToken, password }` | 200 `{ user }` and sets cookie. Finishes a pro account an owner created. | Public (needs a valid setup link) |
+
+### Shop and team
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/shop` | none | shop name, time zone, booking rules | Protected (any role) |
+| PATCH | `/api/shop` | `{ name?, timezone?, defaultBookingWindowDays?, cancellationWindowHours?, allowProCancellationWindow?, allowProPolicyDisplayChoice? }` | `{ shop }` | Owner, Super Admin |
+| POST | `/api/invites` | `{ role: "pro" }` or `{ role: "client" }` | 201 `{ inviteUrl, expiresAt }`. Client links last 24 hours and work once. | `pro` link: Owner, Super Admin. `client` link: a Pro (own page only) or an Owner who also works as a pro. |
+| POST | `/api/team` | `{ name, email, role }` | 201 `{ pro, setupUrl, expiresAt }`. The owner never sets or sees a password. | Owner (own shop), Super Admin |
+| GET | `/api/team` | none | list of pros (pay fields only for owner and Super Admin) | Protected |
+| PATCH | `/api/team/[proId]` | `{ role?, stationNumber?, payType?, payAmount?, priceMode? }` | `{ pro }` | Owner, Super Admin |
+| POST | `/api/owner/chair` | `{ title }` | 201 `{ takesAppointments: true }` (200 if it was already on). The owner gets a pro profile, the shop's services at standard prices and starting hours, and can then use every `/api/pro/*` route. | Owner (own account) |
+| DELETE | `/api/owner/chair` | none | `{ takesAppointments: false }`, or 409 `HAS_APPOINTMENTS` while they have upcoming appointments | Owner (own account) |
+
+### Services, prices, pros
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/services` | none | list of services with standard prices | Protected |
+| POST | `/api/services` | `{ name, description, defaultDurationMin, standardPriceCents }` | 201 `{ service }` (re-embeds it) | Owner, Super Admin |
+| PATCH | `/api/services/[id]` | any of the above fields | `{ service }` (re-embeds it) | Owner, Super Admin |
+| GET | `/api/pros` | `?serviceId=` optional | pros with role, status, services, effective prices | Protected |
+| GET | `/api/pros/[id]` | none | one pro (404 if fake ID) | Protected |
+| PUT | `/api/pros/[id]/services` | `{ serviceIds: [] }` | updated list | The pro themself, Owner, Super Admin |
+| PUT | `/api/pros/[id]/prices` | `{ prices: [{ serviceId, priceCents }] }` | updated list | Owner, Super Admin |
+| PATCH | `/api/pros/[id]/status` | `{ liveStatus }` | `{ liveStatus }` | The pro themself, Owner, Super Admin |
+| PATCH | `/api/pros/[id]/booking-window` | `{ days }` | `{ days }` | The pro themself, Owner, Super Admin |
+| PATCH | `/api/pros/[id]/cancellation-policy` | `{ cancellationWindowHours?, showPolicyOnProfile? }` | `{ cancellationWindowHours, showPolicyOnProfile }`. Refused with 403 unless the shop has turned on the matching option. | The pro themself (only if the shop allows), Owner, Super Admin |
+
+### Search
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/search` | `?q=` (2 to 200 characters) | `{ results: [{ id, source, heading, text, score }], tookMs }`, closest first | Protected (temporary `x-admin-key` header until real login) |
+| GET | `/api/admin/embeddings` | none | `{ embeddedChunks, model, bySource[] }`, read from the database | Protected (temporary `x-admin-key` header until real login) |
+
+### Availability
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/pros/[id]/slots` | `?date=YYYY-MM-DD&serviceIds=<id>,<id>` (1 to 4 services) | open start times for the services back to back, in the shop's time zone | Protected |
+| GET | `/api/guest/shops?q=` | none (`q` = what was typed, up to 80 characters; empty lists shops A to Z) | `{ shops: [{ slug, name, businessType }] }`, up to 6, closest name first (tolerates small typos) | Public (shops a guest may see) |
+| GET | `/api/guest/pros/[id]/slots` | same as above | open start times | Public (shops a guest may see) |
+| PUT | `/api/pros/[id]/hours` | `{ rules: [{ weekday, start, end, kind }] }` | saved rules | The pro themself, Owner, Super Admin |
+| PUT | `/api/pros/[id]/time-off` | `{ ranges: [{ startsOn, endsOn }] }` | saved ranges | The pro themself, Owner, Super Admin |
+
+### Appointments
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| POST | `/api/appointments` | `{ proId, serviceIds: [1 to 4 IDs], startsAt }` | 201 `{ appointment }` (total price and end time), or 409 if the time is taken | Client (own), Owner, Super Admin |
+| POST | `/api/pro/appointments` | `{ clientId, serviceIds, startsAt, proId? }` | 201 `{ appointment }` | Pro (with themselves, or a pro who allows it) |
+| POST | `/api/guest/appointments` | `{ proId, serviceIds, startsAt, name, phone }` | 201 `{ appointment: { id, startsAt } }` | Public (no login) |
+| GET | `/api/appointments` | `?from=&to=` | client: own. Pro: own. Owner: whole shop. | Protected |
+| GET | `/api/appointments/[id]` | none | one appointment (404 if not yours) | Protected |
+| PATCH | `/api/appointments/[id]` | `{ startsAt }` (reschedule) | `{ appointment }` | Client (own), Pro (own), Owner, Super Admin |
+| DELETE | `/api/appointments/[id]` | none | 204 (sets status to cancelled) | Client (own, outside window), Pro (own), Owner, Super Admin |
+| PATCH | `/api/appointments/[id]/status` | `{ status }` | `{ appointment }` | Pro (own), Owner, Super Admin |
+| PATCH | `/api/appointments/[id]/payment` | `{ paymentStatus }` | `{ appointment }` | Pro (own), Owner, Super Admin |
+
+### Clients and style cards
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/clients` | none | pro: own clients as `{ id, name, phone }` only | Pro, Owner, Super Admin |
+| GET | `/api/clients/[id]/style-card` | none | the caller's style card for this client | Pro (own or shared), Owner, Super Admin |
+| PUT | `/api/clients/[id]/style-card` | `{ preferences, notes, usualServiceId, timeEstimateMin }` | `{ styleCard }` | Pro (own card), Super Admin |
+| POST | `/api/style-cards/[id]/photos` | multipart file (JPG, PNG, WebP, max 5 MB) | 201 `{ photo }` | Pro (own card), Super Admin |
+| DELETE | `/api/style-cards/[id]/photos/[photoId]` | none | 204 | Pro (own card), Super Admin |
+| PUT | `/api/style-card-shares` | `{ fromProId, toProId, enabled }` | `{ share }` | Owner, Super Admin |
+
+### Super Admin only
+| Method | URL | Request body | Response | Who |
+|---|---|---|---|---|
+| GET | `/api/admin/logs` | `?level=&event=&route=&from=&to=&cursor=` | log page | Super Admin |
+| GET | `/api/admin/metrics` | `?range=1h\|24h\|7d&source=logs\|table` | requests, errors, median and p95 latency over time. `logs` calculates from `log_entries`; `table` reads `metrics_minutely`. Default `table`. | Super Admin |
+| GET | `/api/admin/vitals` | `?range=` | web vitals grouped by page | Super Admin |
+| GET | `/api/admin/stack-links` | none | links read from env variables | Super Admin |
+| GET | `/api/admin/embeddings` | none | `{ embeddedCount, serviceCount }` read from the vector table | Super Admin |
+| POST | `/api/admin/embeddings` | none | re-embeds every service (safe to repeat) | Super Admin |
+| POST | `/api/admin/view-as` | `{ userId }` | starts an audited session | Super Admin |
+
+## Mobile-readiness
+- Same URLs and rules for web and mobile; only the token travels differently (cookie vs. Bearer header).
+- No route returns HTML. Allowed web origins are locked to our own site (never `*`); the mobile app doesn't use browser CORS.
+- Version prefix (`/api/v1`) can be added later without changing the design.
